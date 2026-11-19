@@ -323,7 +323,7 @@ function navItems(){
   return items;
 }
 function render(){
-  const app = $("#app");
+  const app = $("#app"); try { hideTip(); } catch(e){}
   if (S.failed) { $("#nav").innerHTML=""; app.innerHTML = `<div class="center"><div>مش قادر أوصل لقاعدة البيانات.</div><div>اتأكد إنك مسجل دخول على claude.ai وافتح الصفحة تاني.</div></div>`; return; }
   if (S.authState !== "in") { $("#nav").innerHTML = ""; $("#who").innerHTML = ""; app.innerHTML = S.authState === "out" ? vLogin() : `<div class="center">جاري التحميل…</div>`; bindLogin(); return; }
   if (!S.memberLoaded) { app.innerHTML = `<div class="center">جاري التحميل…</div>`; return; }
