@@ -381,6 +381,25 @@ function projStats(p){
   const overdue = next && next.date && next.date < today();
   return { pays, collected, total, remaining, status, cls, next, dueItems, overdue, ratio: total ? Math.min(1, collected/total) : 0 };
 }
+function paidTo(personId, payId){ return Object.values(S.payouts).filter(o => o.personId === personId && o.paymentId === payId).reduce((a,o)=>a+N(o.amount),0); }
+function openItemsFor(pid){
+  return Object.values(S.payments).sort((a,b)=>(a.date||"").localeCompare(b.date||"") || (a.createdAt||"").localeCompare(b.createdAt||""))
+    .map(pay => { const share = alloc(pay).shares[pid] || 0; const left = Math.round((share - paidTo(pid, pay.id))*100)/100; return { pay, share, left }; }).filter(x => x.left > 0.5);
+}
+function personSummary(pid){
+  const rows = []; let contract = 0, earned = 0, linkedPaid = 0;
+  Object.values(S.projects).forEach(p => {
+    const exp = N(p.total) ? (alloc({ projectId:p.id, amount:N(p.total), date:today() }).shares[pid] || 0) : 0;
+    const pays = Object.values(S.payments).filter(x => x.projectId === p.id);
+    const got = pays.reduce((a,x)=>a+(alloc(x).shares[pid]||0),0);
+    const paid = pays.reduce((a,x)=>a+paidTo(pid,x.id),0);
+    if (exp > 0.5 || got > 0.5 || paid > 0.5) rows.push({ p, exp:Math.max(exp,got), got, paid });
+    contract += Math.max(exp,got); earned += got; linkedPaid += paid;
+  });
+  const t = personTotals().res[pid] || { paid:0, expShare:0, reimb:0 };
+  return { rows, contract, earned, paid:t.paid, expShare:t.expShare, reimb:t.reimb, unlinked: t.paid - linkedPaid,
+    balance: earned - t.expShare + t.reimb - t.paid, pending: Math.max(0, contract - earned), net: contract - t.expShare + t.reimb };
+}
 function paidForPayment(payId){ return Object.values(S.payouts).filter(o=>o.paymentId===payId).reduce((a,o)=>a+N(o.amount),0); }
 function payStatus(pay){
   const a = alloc(pay); const due = N(pay.amount) - a.unassigned - a.reserve; const paid = paidForPayment(pay.id);
@@ -460,6 +479,10 @@ async function save(path, data, logText){
 async function del(path, logText){
   try { await S.db.doc(path).delete(); if (logText) addLog(logText); return true; }
   catch(e){ console.log("[KANai] delete failed", e); toast("الحذف مانجحش", true); return false; }
+}
+async function saveBatch(ops, logText){
+  try { const b = FB.fs.writeBatch(FB.db); ops.forEach(([path, data, isDel]) => isDel ? b.delete(FB.ref(path)) : b.set(FB.ref(path), JSON.parse(JSON.stringify(data)))); await b.commit(); if (logText) addLog(logText); return true; }
+  catch(e){ console.log("[KANai] batch", e); toast("تعذّر الحفظ، تأكد من صلاحياتك", true); return false; }
 }
 function addLog(text){ try { S.db.doc("log/"+uid()).set({ at:new Date().toISOString(), by:S.myId||"", text }); } catch(e){} }
 async function resolveNames(ids){
@@ -766,7 +789,7 @@ function vPayments(){
   const f = S.f.pay ||= { project:"" }; const r = getRange("pay");
   let list = Object.values(S.payments).filter(x=>inRange(x.date,r)).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   if (f.project) list = list.filter(x=>x.projectId===f.project);
-  return `<h2 style="margin-top:0">دفعات العملاء <span class="spacer"></span><button class="btn ghost sm" data-export="payments">تصدير CSV</button>${can("payments")?`<button class="btn" data-new-payment>+ دفعة جديدة</button>`:""}</h2>
+  return `<h2 style="margin-top:0">دفعات العملاء <span class="spacer"></span><button class="btn ghost sm" data-export="payments">تصدير CSV</button>${can("payments")?`<button class="btn ghost" data-client-receipt>+ تحويل مجمّع من عميل</button><button class="btn" data-new-payment>+ دفعة جديدة</button>`:""}</h2>
   ${periodBar("pay")}
   <div class="filters"><label class="f">المشروع<select data-payproj><option value="">كل المشاريع</option>${projOptions(f.project)}</select></label><div class="muted" style="padding-bottom:9px">الإجمالي: ${money(list.reduce((a,x)=>a+N(x.amount),0))}</div></div>
   <div class="tbl">${list.length?`<table><tr><th>التاريخ</th><th>المشروع</th><th>المبلغ</th><th>طريقة الاستلام</th><th>التقسيم</th><th>التوزيع</th><th></th></tr>
@@ -812,23 +835,97 @@ function paymentModal(id, presetProject){
 
 // ================= payouts =================
 function editCell(perm){ return `<td style="width:1%;white-space:nowrap"><span class="btn ghost sm">${can(perm)?"✎ تعديل":"عرض"}</span></td>`; }
+function groupPayouts(list){ const g = {}, out = []; list.forEach(o => { if (o.groupId) { if (!g[o.groupId]) { g[o.groupId] = { ...o, id:"g:"+o.groupId, amount:0, items:[] }; out.push(g[o.groupId]); } g[o.groupId].amount += N(o.amount); g[o.groupId].items.push(o); } else out.push(o); }); return out; }
+function payItemLabel(o){ const pay = S.payments[o.paymentId]; return pay ? `${esc(projName(S.projects[pay.projectId]))} <span class="muted num">${fdate(pay.date)}</span>` : '<span class="muted">من الرصيد العام</span>'; }
 function payoutTable(list, empty){
-  list = list.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  list = groupPayouts(list).sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   return `<div class="tbl">${list.length?`<table><tr><th>التاريخ</th><th>اتحوّل لـ</th><th>المبلغ</th><th>طريقة التحويل</th><th>من دفعة</th><th>ملاحظات</th><th></th></tr>
-  ${list.map(o=>{const pay=S.payments[o.paymentId]; return `<tr class="click" data-payout="${o.id}"><td class="num">${fdate(o.date)}</td><td>${personCell(o.personId)}</td><td><b>${money(o.amount)}</b></td><td>${esc(o.method||"")}</td><td style="font-size:13px">${pay?`${esc(projName(S.projects[pay.projectId]))} <span class="muted num">${fdate(pay.date)}</span>`:'<span class="muted">من الرصيد</span>'}</td><td class="muted">${esc(o.notes||"")}</td>${editCell("payouts")}</tr>`;}).join("")}</table>`:`<div class="empty">${empty||"لسه مفيش تحويلات"}</div>`}</div>`;
+  ${list.map(o=>`<tr class="click" data-payout="${o.id}"><td class="num">${fdate(o.date)}</td><td>${personCell(o.personId)}</td><td><b>${money(o.amount)}</b></td><td>${esc(o.method||"")}</td><td style="font-size:13px">${o.items ? (o.items.length===1 ? payItemLabel(o.items[0]) : o.items.map(i=>`<div style="display:flex;justify-content:space-between;gap:10px"><span>${payItemLabel(i)}</span><span class="num">${fmt(i.amount)}</span></div>`).join("")) : payItemLabel(o)}</td><td class="muted">${esc(o.notes||"")}</td>${editCell("payouts")}</tr>`).join("")}</table>`:`<div class="empty">${empty||"لسه مفيش تحويلات"}</div>`}</div>`;
 }
 function vPayouts(){
   const waiting = Object.values(S.payments).filter(x=>payStatus(x).open).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
   const { res } = personTotals();
-  return `<h2 style="margin-top:0">التوزيع على الفريق <span class="spacer"></span>${can("payouts")?`<button class="btn" data-new-payout>+ تحويل لحد</button>`:""}</h2>
+  return `<h2 style="margin-top:0">التوزيع على الفريق <span class="spacer"></span>${can("payouts")?`<button class="btn" data-new-payout>+ تحويل لشريك أو موظف</button>`:""}</h2>
   <div class="grid kpis">
     <div class="card kpi hl"><div class="l">في حساب الشركة لسه متوزعش</div><div class="v">${fmt(cashInCompany())}</div><div class="s">${esc(cfg().currency)}</div></div>
-    ${Object.entries(res).filter(([,r])=>r.balance>0.5).map(([id,r])=>`<div class="card kpi"><div class="l">رصيد ${esc(pname(id))}</div><div class="v">${fmt(r.balance)}</div><div class="s">من ${fmt(r.total)} مستحق</div></div>`).join("")}
+    ${Object.entries(res).filter(([,r])=>r.balance>0.5).map(([id,r])=>`<div class="card kpi"><div class="l">رصيد ${esc(pname(id))}</div><div class="v">${fmt(r.balance)}</div><div class="s" style="display:flex;justify-content:space-between;align-items:center">من ${fmt(r.net??r.total)} مستحق ${can("payouts")?`<button class="btn ghost sm" data-transfer="${id}">حوّل</button>`:""}</div></div>`).join("")}
   </div>
   <h2>دفعات مستنية التوزيع</h2>
   <div class="tbl">${waiting.length?`<table><tr><th>التاريخ</th><th>المشروع</th><th>المبلغ</th><th>اتوزع منها</th><th>الحالة</th><th></th></tr>
   ${waiting.map(x=>{const st=payStatus(x); return `<tr><td class="num">${fdate(x.date)}</td><td>${esc(projName(S.projects[x.projectId]))}</td><td>${money(x.amount)}</td><td>${money(paidForPayment(x.id))}</td><td><span class="pill ${st.c}">${st.t}</span></td><td>${can("payouts")?`<button class="btn sm" data-distribute="${x.id}">وزّع</button>`:""}</td></tr>`;}).join("")}</table>`:`<div class="empty">كل الدفعات اتوزعت ✓</div>`}</div>
   <h2>سجل التحويلات</h2>${payoutTable(Object.values(S.payouts))}`;
+}
+// ---- one transfer to a person, split over open items ----
+function transferModal(presetPid){
+  const people = activePeople(); let pid = presetPid || "";
+  modal(`<h3>تحويل لشريك أو موظف</h3>
+  <div class="two"><label class="f">اتحوّل لـ<select id="tp">${peopleOptions(pid)}</select></label><label class="f">المبلغ المحوّل<input type="number" id="ta"></label></div>
+  <div class="two" style="margin-top:12px"><label class="f">التاريخ<input type="date" id="td" value="${today()}"></label><label class="f">طريقة التحويل<select id="tm"><option value=""></option>${cfg().methods.map(m=>`<option>${esc(m)}</option>`).join("")}</select></label></div>
+  <div class="sub"><h4>المبلغ ده عن أنهي بنود؟ <span class="spacer" style="flex:1"></span><button class="btn ghost sm" id="tauto">توزيع تلقائي</button></h4>
+    <div class="hint" style="margin:-4px 0 10px">السيستم بيوزّع المبلغ على المستحقات المفتوحة من الأقدم للأحدث، وتقدر تعدّل أي رقم.</div>
+    <div id="titems"></div><div class="split" id="tsum" style="margin-top:8px"></div></div>
+  <label class="f" style="margin-top:12px">ملاحظات<input id="tn"></label>
+  <div class="act"><button class="btn" id="tsave">تسجيل التحويل</button><button class="btn ghost" id="tcl">إلغاء</button></div>`);
+  const draw = () => {
+    pid = $("#tp").value; const items = pid ? openItemsFor(pid) : [];
+    $("#titems").innerHTML = !pid ? `<div class="muted">اختار الشخص الأول</div>` : items.length ? items.map(it=>`<div class="row" data-ti="${it.pay.id}" data-left="${it.left}"><span style="flex:1;font-size:13px">${esc(projName(S.projects[it.pay.projectId]))}<div class="muted" style="font-size:12px">دفعة ${fdate(it.pay.date)} · فاضل له ${fmt(it.left)}</div></span><input type="number" value="0" style="max-width:120px;flex:0 0 120px"></div>`).join("") : `<div class="muted">مفيش مستحقات مفتوحة له، والمبلغ هيتسجل من الرصيد العام.</div>`;
+    $$("#titems input").forEach(i => i.oninput = sum); auto();
+  };
+  const auto = () => { let rem = N($("#ta").value); $$("[data-ti]").forEach(r => { const left = N(r.dataset.left); const v = Math.min(left, Math.max(0, rem)); r.querySelector("input").value = Math.round(v*100)/100; rem -= v; }); sum(); };
+  const sum = () => { const tot = N($("#ta").value); const a = $$("[data-ti] input").reduce((s,i)=>s+N(i.value),0); const rest = Math.round((tot-a)*100)/100;
+    $("#tsum").innerHTML = `<div><span>موزّع على البنود</span><span>${money(a)}</span></div>${rest>0.5?`<div class="muted"><span>هيتسجل من الرصيد العام</span><span>${money(rest)}</span></div>`:""}${rest<-0.5?`<div style="color:var(--bad)"><span>الموزّع أكبر من المبلغ المحوّل</span><span>${money(-rest)}</span></div>`:""}`; };
+  $("#tp").onchange = draw; $("#ta").oninput = auto; $("#tauto").onclick = auto; $("#tcl").onclick = closeModal; draw();
+  $("#tsave").onclick = async () => {
+    const amount = N($("#ta").value), date = $("#td").value, method = $("#tm").value, notes = $("#tn").value.trim();
+    if (!pid || !amount || !date) return toast("اختار الشخص واكتب المبلغ والتاريخ", true);
+    const parts = $$("[data-ti]").map(r => ({ paymentId:r.dataset.ti, amount:N(r.querySelector("input").value) })).filter(x => x.amount > 0);
+    const a = parts.reduce((s,x)=>s+x.amount,0); if (a > amount + 0.5) return toast("الموزّع أكبر من المبلغ المحوّل", true);
+    if (amount - a > 0.5) parts.push({ paymentId:"", amount: Math.round((amount-a)*100)/100 });
+    const groupId = uid(), now = new Date().toISOString();
+    const ops = parts.map(x => ["payouts/"+uid(), { personId:pid, amount:x.amount, date, method, paymentId:x.paymentId, groupId, groupTotal:amount, notes, createdBy:S.myId, createdAt:now }]);
+    if (await saveBatch(ops, `تحويل ${fmt(amount)} لـ ${pname(pid)} موزّع على ${parts.length} بند`)) { closeModal(); toast("تم تسجيل التحويل"); }
+  };
+}
+function payoutGroupModal(gid){
+  const items = Object.values(S.payouts).filter(o => o.groupId === gid); if (!items.length) return;
+  const tot = items.reduce((a,o)=>a+N(o.amount),0), o0 = items[0];
+  modal(`<h3>تحويل ${money(tot)} لـ ${esc(pname(o0.personId))}</h3>
+  <div class="muted" style="margin-bottom:10px"><span class="num">${fdate(o0.date)}</span>${o0.method?` · ${esc(o0.method)}`:""}${o0.notes?` · ${esc(o0.notes)}`:""}</div>
+  <div class="sub"><h4>التفاصيل</h4>${items.map(i=>`<div class="split"><div><span>${payItemLabel(i)}</span><span>${money(i.amount)}</span></div></div>`).join("")}</div>
+  <div class="act"><button class="btn ghost" id="gcl">إغلاق</button>${can("payouts")?`<span class="spacer" style="flex:1"></span><button class="btn danger" id="gdel">حذف التحويل</button>`:""}</div>`);
+  $("#gcl").onclick = closeModal;
+  if ($("#gdel")) $("#gdel").onclick = () => confirmBox(`تحذف التحويل ده بالكامل (${fmt(tot)})؟`, async () => { if (await saveBatch(items.map(i => ["payouts/"+i.id, null, true]), `حذف تحويل ${fmt(tot)} لـ ${pname(o0.personId)}`)) toast("تم الحذف"); });
+}
+// ---- one client transfer split over open projects ----
+function clientReceiptModal(){
+  const clients = [...new Set(Object.values(S.projects).filter(p => projStats(p).remaining > 0.5).map(p => p.client))].sort();
+  modal(`<h3>تحويل مجمّع من عميل</h3>
+  <div class="hint" style="margin:-8px 0 12px">لما العميل يحوّل مبلغ واحد عن أكتر من مشروع، سجّله هنا والسيستم يوزّعه على مشاريعه المفتوحة.</div>
+  <div class="two"><label class="f">العميل<select id="cc"><option value="">اختار العميل…</option>${clients.map(c=>`<option>${esc(c)}</option>`).join("")}</select></label><label class="f">المبلغ المستلم<input type="number" id="ca"></label></div>
+  <div class="two" style="margin-top:12px"><label class="f">تاريخ الاستلام<input type="date" id="cd" value="${today()}"></label><label class="f">طريقة الاستلام<select id="cm"><option value=""></option>${cfg().methods.map(m=>`<option>${esc(m)}</option>`).join("")}</select></label></div>
+  <div class="sub"><h4>التوزيع على المشاريع <span class="spacer" style="flex:1"></span><button class="btn ghost sm" id="cauto">توزيع تلقائي</button></h4>
+    <div class="hint" style="margin:-4px 0 10px">بالترتيب حسب أقرب دفعة مستحقة، وتقدر تعدّل أي رقم.</div>
+    <div id="citems"><div class="muted">اختار العميل الأول</div></div><div class="split" id="csum" style="margin-top:8px"></div></div>
+  <div class="act"><button class="btn" id="csave">تسجيل الاستلام</button><button class="btn ghost" id="ccl">إلغاء</button></div>`);
+  const draw = () => {
+    const c = $("#cc").value; const ps = Object.values(S.projects).filter(p => p.client === c).map(p => ({ p, s:projStats(p) })).filter(x => x.s.remaining > 0.5)
+      .sort((a,b) => (a.s.next?.date||"9999").localeCompare(b.s.next?.date||"9999") || (a.p.date||"").localeCompare(b.p.date||""));
+    $("#citems").innerHTML = !c ? `<div class="muted">اختار العميل الأول</div>` : ps.map(x=>`<div class="row" data-ci="${x.p.id}" data-left="${x.s.remaining}"><span style="flex:1;font-size:13px">${esc(x.p.type)}<div class="muted" style="font-size:12px">المتبقي ${fmt(x.s.remaining)}${x.s.next?.date?` · مستحق ${fdate(x.s.next.date)}`:""}</div></span><input type="number" value="0" style="max-width:120px;flex:0 0 120px"></div>`).join("");
+    $$("#citems input").forEach(i => i.oninput = sum); auto();
+  };
+  const auto = () => { let rem = N($("#ca").value); $$("[data-ci]").forEach(r => { const v = Math.min(N(r.dataset.left), Math.max(0, rem)); r.querySelector("input").value = Math.round(v*100)/100; rem -= v; }); sum(); };
+  const sum = () => { const tot = N($("#ca").value); const a = $$("[data-ci] input").reduce((s,i)=>s+N(i.value),0); const rest = Math.round((tot-a)*100)/100;
+    $("#csum").innerHTML = `<div><span>موزّع على المشاريع</span><span>${money(a)}</span></div>${Math.abs(rest)>0.5?`<div style="color:var(--bad)"><span>${rest>0?"المبلغ أكبر من الموزّع":"الموزّع أكبر من المبلغ"}</span><span>${money(Math.abs(rest))}</span></div>`:""}`; };
+  $("#cc").onchange = draw; $("#ca").oninput = auto; $("#cauto").onclick = auto; $("#ccl").onclick = closeModal;
+  $("#csave").onclick = async () => {
+    const c = $("#cc").value, amount = N($("#ca").value), date = $("#cd").value, method = $("#cm").value;
+    if (!c || !amount || !date) return toast("اختار العميل واكتب المبلغ والتاريخ", true);
+    const parts = $$("[data-ci]").map(r => ({ projectId:r.dataset.ci, amount:N(r.querySelector("input").value) })).filter(x => x.amount > 0);
+    const a = parts.reduce((s,x)=>s+x.amount,0); if (Math.abs(a - amount) > 0.5) return toast("لازم مجموع التوزيع يساوي المبلغ المستلم", true);
+    const groupId = uid(), now = new Date().toISOString();
+    const ops = parts.map(x => { const pr = S.projects[x.projectId]; return ["payments/"+uid(), { projectId:x.projectId, amount:x.amount, date, method, notes:`ضمن تحويل مجمّع ${fmt(amount)} من ${c}`, groupId, groupTotal:amount, teamIds: pr.teamIds || [...new Set((pr.team||[]).map(t=>t.personId))], createdBy:S.myId, createdAt:now }]; });
+    if (await saveBatch(ops, `استلام تحويل مجمّع ${fmt(amount)} من ${c} على ${parts.length} مشروع`)) { closeModal(); toast("تم تسجيل الاستلام"); }
+  };
 }
 function distributeModal(payId){
   const pay = S.payments[payId]; const a = alloc(pay);
@@ -887,19 +984,27 @@ function vStatement(){
 function personDetail(pid, r){
   const all = personTotals().res[pid] || { total:0, paid:0, balance:0 };
   const x = personTotals(r).res[pid] || { worker:0, partner:0, total:0, net:0, paid:0, expShare:0, reimb:0, rows:[] };
-  const projs = teamOf(pid);
+  const projs = teamOf(pid); const sm = personSummary(pid);
   return `<div class="grid kpis">
-    <div class="card kpi"><div class="l">صافي المستحق · ${esc(r.label)}</div><div class="v">${fmt(x.net??x.total)}</div><div class="s">كمنفذ ${fmt(x.worker)} · كشريك ${fmt(x.partner)}${x.expShare?` · مصاريف −${fmt(x.expShare)}`:""}${x.reimb?` · مستردّ +${fmt(x.reimb)}`:""}</div></div>
-    <div class="card kpi"><div class="l">اتحوّله · ${esc(r.label)}</div><div class="v">${fmt(x.paid)}</div></div>
-    <div class="card kpi hl"><div class="l">رصيده عند الشركة</div><div class="v" style="color:${all.balance>0.5?'var(--warn)':'inherit'}">${fmt(all.balance)}</div><div class="s">من البداية</div></div>
+    <div class="card kpi hl" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="l">ليك في حساب الشركة دلوقتي</div><div class="v">${fmt(sm.balance)}</div><div class="s">جاهز للتحويل</div></div>${can("payouts")&&sm.balance>0.5?`<button class="btn ghost sm" data-transfer="${pid}">حوّل ←</button>`:""}</div>
+    <div class="card kpi"><div class="l">إجمالي ربحك من كل العقود</div><div class="v">${fmt(sm.net)}</div><div class="s">${sm.rows.length} مشروع${sm.expShare?` · بعد خصم المصاريف`:""}</div></div>
+    <div class="card kpi"><div class="l">اتحوّلك لحد دلوقتي</div><div class="v">${fmt(sm.paid)}</div><div class="s">${groupPayouts(Object.values(S.payouts).filter(o=>o.personId===pid)).length} تحويل</div></div>
+    <div class="card kpi"><div class="l">لسه عند العملاء</div><div class="v">${fmt(sm.pending)}</div><div class="s">هيدخل الشركة لما العملاء يدفعوا</div></div>
   </div>
-  ${projs.length?`<h2>مشاريعه ودوره</h2><div class="tbl"><table><tr><th>المشروع</th><th>الدور</th><th>نصيبه</th><th>قيمة المشروع</th><th>حالة المشروع</th></tr>
+  <h2>حسابك في كل مشروع</h2>
+  <div class="tbl">${sm.rows.length?`<table><tr><th>المشروع</th><th>نصيبك من العقد</th><th>دخل الشركة من نصيبك</th><th>اتحوّلك</th><th>ليك في حساب الشركة</th><th>لسه عند العميل</th></tr>
+  ${sm.rows.map(y=>`<tr ${can("viewAll")?`class="click" data-open="${y.p.id}"`:""}><td>${esc(projName(y.p))}</td><td>${money(y.exp)}</td><td>${money(y.got)}</td><td>${money(y.paid)}</td><td><b style="color:${y.got-y.paid>0.5?'var(--warn)':'inherit'}">${money(y.got-y.paid)}</b></td><td>${money(Math.max(0,y.exp-y.got))}</td></tr>`).join("")}
+  ${sm.expShare>0.5?`<tr><td>حصتك من مصاريف الشركة</td><td colspan="3"></td><td><span style="color:var(--bad)">−</span>${money(sm.expShare)}</td><td></td></tr>`:""}
+  ${sm.reimb>0.5?`<tr><td>مصاريف دفعتها من جيبك</td><td colspan="3"></td><td>+${money(sm.reimb)}</td><td></td></tr>`:""}
+  ${Math.abs(sm.unlinked)>0.5?`<tr><td>تحويلات غير مربوطة بدفعة</td><td colspan="2"></td><td>${money(sm.unlinked)}</td><td><span style="color:var(--bad)">−</span>${money(sm.unlinked)}</td><td></td></tr>`:""}
+  <tr class="tot"><td>الإجمالي</td><td>${money(sm.contract)}</td><td>${money(sm.earned)}</td><td>${money(sm.paid)}</td><td>${money(sm.balance)}</td><td>${money(sm.pending)}</td></tr></table>`:`<div class="empty">مفيش مشاريع لسه</div>`}</div>
+  ${projs.length?`<h2>دورك في المشاريع</h2><div class="tbl"><table><tr><th>المشروع</th><th>الدور</th><th>نصيبه</th><th>قيمة المشروع</th><th>حالة المشروع</th></tr>
   ${projs.map(p=>{const t=(p.team||[]).filter(t=>t.personId===pid); const s=projStats(p); return `<tr ${can("viewAll")?`class="click" data-open="${p.id}"`:""}><td>${esc(projName(p))}</td><td>${t.map(x=>esc(x.role||"—")).join("، ")}</td><td>${t.map(x=>x.mode==="fixed"?money(x.value):`<span class="num">${N(x.value)}%</span> <span class="muted">(${fmt(N(p.total)*N(x.value)/100)})</span>`).join("، ")}</td><td>${money(p.total)}</td><td><span class="pill ${s.cls}">${s.status}</span></td></tr>`;}).join("")}</table></div>`:""}
-  <h2>نصيبه من كل دفعة</h2>
+  <h2>نصيبك من كل دفعة <span class="spacer"></span><span class="muted" style="font-size:13px;font-weight:400">${esc(r.label)}</span></h2>
   <div class="tbl">${x.rows.length?`<table><tr><th>التاريخ</th><th>المشروع</th><th>الدفعة</th><th>كمنفذ</th><th>كشريك</th><th>الإجمالي</th></tr>
   ${x.rows.sort((a,b)=>(b.pay.date||"").localeCompare(a.pay.date||"")).map(y=>`<tr ${can("viewAll")?`class="click" data-pay="${y.pay.id}"`:""}><td class="num">${fdate(y.pay.date)}</td><td>${esc(projName(S.projects[y.pay.projectId]))}</td><td>${money(y.pay.amount)}</td><td>${money(y.w)}</td><td>${money(y.pt)}</td><td><b>${money(y.w+y.pt)}</b></td></tr>`).join("")}
   <tr class="tot"><td colspan="3">الإجمالي</td><td>${money(x.worker)}</td><td>${money(x.partner)}</td><td>${money(x.total)}</td></tr></table>`:`<div class="empty">مفيش مستحقات في الفترة دي</div>`}</div>
-  <h2>التحويلات اللي وصلته</h2>${payoutTable(Object.values(S.payouts).filter(o=>o.personId===pid && inRange(o.date,r)), r.from||r.to ? `مفيش تحويلات في الفترة دي (${esc(r.label)}). جرّب "من البداية".` : "لسه مفيش تحويلات")}`;
+  <h2>التحويلات اللي وصلتك <span class="spacer"></span><span class="muted" style="font-size:13px;font-weight:400">${esc(r.label)}</span></h2>${payoutTable(Object.values(S.payouts).filter(o=>o.personId===pid && inRange(o.date,r)), r.from||r.to ? `مفيش تحويلات في الفترة دي (${esc(r.label)}). جرّب "من البداية".` : "لسه مفيش تحويلات")}`;
 }
 function vMine(){ const r = getRange("mine"); return `<h2 style="margin-top:0">حسابي · ${esc(pname(myPerson()))}</h2>${periodBar("mine")}${personDetail(myPerson(), r)}`; }
 
@@ -1273,7 +1378,7 @@ function bind(){
   on("#nav a","onclick", e => go(e.dataset.v));
   on("[data-open]","onclick", e => projectModal(e.dataset.open));
   on("[data-pay]","onclick", e => paymentModal(e.dataset.pay));
-  on("[data-payout]","onclick", e => payoutModal(e.dataset.payout));
+  on("[data-payout]","onclick", e => e.dataset.payout.startsWith("g:") ? payoutGroupModal(e.dataset.payout.slice(2)) : payoutModal(e.dataset.payout));
   on("[data-distribute]","onclick", e => distributeModal(e.dataset.distribute));
   on("[data-alert]","onclick", e => { const a = e.dataset.alert; if (a==="__payouts") go("payouts"); else if (a.startsWith("__remind:")) reminderModal(a.slice(9)); else projectModal(a); });
   $$("[data-remind]").forEach(b => b.onclick = ev => { ev.stopPropagation(); reminderModal(b.dataset.remind); });
@@ -1283,7 +1388,9 @@ function bind(){
   on("[data-person]","onclick", e => { S.f.stp = { person:e.dataset.person }; S.f.st = { ...(S.f[S.view==="dashboard"?"dash":"st"]||{p:"month"}) }; go("statement"); });
   on("[data-new-project]","onclick", () => projectModal());
   on("[data-new-payment]","onclick", () => paymentModal());
-  on("[data-new-payout]","onclick", () => payoutModal());
+  on("[data-new-payout]","onclick", () => transferModal());
+  on("[data-client-receipt]","onclick", () => clientReceiptModal());
+  $$("[data-transfer]").forEach(b => b.onclick = ev => { ev.stopPropagation(); transferModal(b.dataset.transfer); });
   on("[data-new-person]","onclick", () => personModal());
   on("[data-person-edit]","onclick", e => personModal(e.dataset.personEdit));
   on("[data-member]","onclick", e => memberModal(e.dataset.member));
