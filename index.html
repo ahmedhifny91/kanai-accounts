@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>KANai — سيستم الحسابات</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -46,6 +46,7 @@ nav a.on{background:var(--silver);color:#111}
 .kpi .v{font-size:24px;font-weight:700;margin-top:6px;direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
 .kpi .s{color:var(--muted);font-size:12px;margin-top:4px}
 .kpi.hl{border-color:#44474f;background:linear-gradient(160deg,#1b1c20,#141416)}
+.kpis .kpi.hl[style]{grid-column:span 2}
 h2{font-size:18px;margin:26px 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 h2 .spacer{flex:1}
 h3.ct{margin:0 0 4px;font-size:15px}
@@ -113,6 +114,64 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 .or:before,.or:after{content:"";flex:1;height:1px;background:var(--line)}
 .login label.f{margin-bottom:10px}
 .linkbtn{background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px;text-decoration:underline;padding:0}
+.pbtn{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid #2e2f36;border-radius:14px;padding:10px 14px;margin-bottom:16px;cursor:pointer;color:var(--text);text-align:right;min-width:320px}
+.pbtn:hover{border-color:#4a4b54}
+.pcal{width:34px;height:34px;border-radius:10px;background:#1f2a3a;color:var(--info);display:flex;align-items:center;justify-content:center;flex:none}
+.pt{flex:1;display:flex;flex-direction:column}.pt b{font-size:14px}.pt span{font-size:12px;color:var(--muted)}
+.pch{color:var(--muted);font-size:13px;white-space:nowrap}
+.popt{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer;gap:10px}
+.popt.on{border-color:var(--silver);background:#1f2025}
+.popt .l{display:flex;align-items:center;gap:10px}
+.popt .rd{width:18px;height:18px;border-radius:50%;border:2px solid #4a4a52;flex:none}
+.popt.on .rd{border:5px solid var(--silver)}
+.popt span{font-size:12px;color:var(--muted)}
+#bnav{display:none}
+.morelist a{display:flex;align-items:center;gap:12px;padding:13px 6px;border-bottom:1px solid var(--line);color:var(--text);text-decoration:none;cursor:pointer;font-size:15px}
+.morelist a:last-child{border:0}
+.morelist a.on{color:#fff;font-weight:700}
+.morelist svg{color:var(--muted)}
+@media(max-width:760px){
+  html,body{font-size:14px}
+  .wrap{padding:calc(10px + env(safe-area-inset-top)) 14px calc(96px + env(safe-area-inset-bottom))}
+  header{margin-bottom:12px;flex-wrap:nowrap}
+  header .logo img{height:30px}
+  #nav{display:none}
+  .who .wname,.who .tag{display:none}
+  #bnav{display:flex;position:fixed;bottom:0;left:0;right:0;z-index:15;justify-content:space-around;align-items:flex-start;padding:8px 4px calc(8px + env(safe-area-inset-bottom));background:rgba(15,15,17,.96);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+  #bnav a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:#8b8b95;text-decoration:none;cursor:pointer;flex:1;min-width:0}
+  #bnav a .i{height:28px;display:flex;align-items:center;justify-content:center;padding:0 14px;border-radius:14px}
+  #bnav a.on{color:#fff}#bnav a.on .i{background:#2a2b31}
+  h2{font-size:16px;margin:20px 0 10px}
+  .pbtn{min-width:0;width:100%}
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .kpi{padding:12px}.kpi .v{font-size:20px}.kpi .l{font-size:12px}
+  .kpi.hl{grid-column:1/-1}
+  .kpi.hl .v{font-size:26px}
+  .cols2{grid-template-columns:1fr}
+  .grid[style*="minmax(300px"],.grid[style*="minmax(280px"]{grid-template-columns:1fr !important}
+  .filters{gap:8px}.filters label.f{flex:1;min-width:140px}
+  /* tables -> cards */
+  .tbl{background:none;border:0;overflow:visible;border-radius:0}
+  .tbl table,.tbl tbody{display:block}
+  .tbl tr.hrow{display:none}
+  .tbl tr{display:grid;grid-template-columns:1fr 1fr;gap:9px 12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:9px}
+  .tbl tr.tot{background:#1a1b1f;border-color:#3a3b42}
+  .tbl td{display:block;border:0;padding:0;text-align:right;min-width:0;white-space:normal}
+  .tbl td::before{content:attr(data-label);display:block;font-size:11px;color:var(--muted);margin-bottom:2px;font-weight:400}
+  .tbl td:first-child{grid-column:1/-1;font-weight:600;font-size:14.5px}
+  .tbl td:first-child::before,.tbl td[data-label=""]::before{display:none}
+  .tbl td[data-label=""],.tbl td[colspan]{grid-column:1/-1}
+  .tbl td[data-label=""]:last-child{display:flex;justify-content:flex-start;gap:6px}
+  .tbl td[data-label=""]:empty{display:none}
+  .tbl tr.click:hover td{background:none}
+  .tbl .empty{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+  .tbl .bar{min-width:0}
+  .modal-bg{align-items:flex-end;padding:0}
+  .modal{border-radius:22px 22px 0 0;max-height:92vh;overflow:auto;padding:16px 16px calc(20px + env(safe-area-inset-bottom));border-bottom:0}
+  .modal:before{content:"";display:block;width:40px;height:5px;background:#3a3a42;border-radius:9px;margin:-4px auto 14px}
+  .act .btn{flex:1}
+  .toast{bottom:calc(90px + env(safe-area-inset-bottom))}
+}
 .perm{display:flex;gap:12px;flex-wrap:wrap;font-size:13px}
 .perm label{display:flex;gap:5px;align-items:center}
 </style>
@@ -127,6 +186,7 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
   </header>
   <main id="app"><div class="center">جاري تحميل البيانات…</div></main>
 </div>
+<nav id="bnav"></nav>
 <div id="modalRoot"></div>
 <div id="tip"></div>
 
@@ -152,6 +212,21 @@ const ROLE_PRESETS = {
   employee:{ label:"موظف / فريلانسر", perms:{viewAll:false, projects:false, payments:false, payouts:false, expenses:false} }
 };
 const PERM_LABELS = { viewAll:"يشوف كل الحسابات والتقارير", projects:"يضيف ويعدّل المشاريع", payments:"يسجّل دفعات العملاء", payouts:"يسجّل التوزيع والتحويلات", expenses:"يسجّل مصاريف الشركة" };
+const SV = d => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const ICON = {
+  dashboard: SV('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  projects: SV('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+  payments: SV('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/>'),
+  payouts: SV('<path d="M7 7h13l-3-3M17 17H4l3 3"/>'),
+  expenses: SV('<path d="M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4"/>'),
+  statement: SV('<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'),
+  mine: SV('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>'),
+  team: SV('<circle cx="9" cy="8" r="3.5"/><path d="M2 20a7 7 0 0 1 14 0M16 4.5a3.5 3.5 0 0 1 0 7M22 20a7 7 0 0 0-4-6.3"/>'),
+  settings: SV('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  log: SV('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  more: SV('<path d="M4 6h16M4 12h16M4 18h16"/>'),
+  cal: SV('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>')
+};
 const KIND = { founder:"شريك مؤسس", employee:"موظف", freelancer:"فريلانسر" };
 
 const $ = s => document.querySelector(s);
@@ -284,16 +359,29 @@ function periodRange(key, custom){
     case "q": return { from:first(y,m-2), to:last(y,m), label:"آخر 3 شهور" };
     case "year": return { from:`${y}-01-01`, to:`${y}-12-31`, label:`سنة ${y}` };
     case "custom": return { from:custom?.from||"", to:custom?.to||"", label:"فترة مخصصة" };
-    default: return { from:"", to:"", label:"من البداية" };
+    default: return { from:"", to:"", label:"من البداية لحد النهاردة" };
   }
 }
 const PERIODS = [["month","الشهر ده"],["prev","الشهر اللي فات"],["q","آخر 3 شهور"],["year","السنة دي"],["all","من البداية"],["custom","مخصص"]];
 function periodBar(key){
-  const f = S.f[key] ||= { p: key==="dash" ? "month" : "all", from:"", to:"" };
-  return `<div class="filters"><div class="seg">${PERIODS.map(([k,l])=>`<button data-period="${key}:${k}" class="${f.p===k?"on":""}">${l}</button>`).join("")}</div>
-  ${f.p==="custom"?`<label class="f">من<input type="date" data-pfrom="${key}" value="${f.from}"></label><label class="f">إلى<input type="date" data-pto="${key}" value="${f.to}"></label>`:""}</div>`;
+  const r = getRange(key);
+  return `<button class="pbtn" data-psheet="${key}"><span class="pcal">${ICON.cal}</span><span class="pt"><b>${esc(r.label)}</b><span class="num">${rangeText(r)}</span></span><span class="pch">تغيير ▾</span></button>`;
 }
-const getRange = key => { const f = S.f[key] ||= { p: key==="dash" ? "month" : "all", from:"", to:"" }; return periodRange(f.p, f); };
+const getRange = key => { const f = S.f[key] ||= { p:"all", from:"", to:"" }; return periodRange(f.p, f); };
+function firstDate(){ const ds = [...Object.values(S.payments).map(x=>x.date), ...Object.values(S.projects).map(p=>p.date)].filter(Boolean).sort(); return ds[0] || today(); }
+function rangeText(r){ if (!r.from && !r.to) return `${fdate(firstDate())} — ${fdate(today())}`; return `${r.from?fdate(r.from):"…"} — ${r.to?fdate(r.to):"…"}`; }
+function periodSheet(key){
+  const f = S.f[key] ||= { p:"all", from:"", to:"" }; let sel = f.p;
+  const order = [["all","من البداية لحد النهاردة"],["month","الشهر ده"],["prev","الشهر اللي فات"],["q","آخر 3 شهور"],["year","السنة دي"],["custom","فترة مخصصة"]];
+  const sub = k => k==="all" ? "الافتراضي" : k==="custom" ? "" : rangeText(periodRange(k));
+  modal(`<h3>الفترة</h3><div class="hint" style="margin:-8px 0 14px">الأرقام والتقارير هتتحسب على الفترة اللي تختارها</div>
+  ${order.map(([k,l])=>`<div class="popt ${sel===k?"on":""}" data-po="${k}"><div class="l"><span class="rd"></span>${l}</div><span class="num">${sub(k)}</span></div>`).join("")}
+  <div class="two" id="pcust" style="margin:4px 0 6px;display:${sel==="custom"?"grid":"none"}"><label class="f">من<input type="date" id="pfrom" value="${f.from||firstDate()}"></label><label class="f">إلى<input type="date" id="pto" value="${f.to||today()}"></label></div>
+  <div class="act"><button class="btn" id="papply">تطبيق</button><button class="btn ghost" id="pcl">إلغاء</button></div>`);
+  $$("[data-po]").forEach(o => o.onclick = () => { sel = o.dataset.po; $$("[data-po]").forEach(x => x.classList.toggle("on", x === o)); $("#pcust").style.display = sel==="custom" ? "grid" : "none"; });
+  $("#pcl").onclick = closeModal;
+  $("#papply").onclick = () => { S.f[key] = { ...f, p:sel, from: sel==="custom" ? $("#pfrom").value : "", to: sel==="custom" ? $("#pto").value : "" }; if (key==="dash" || key==="st") { S.f.dash = { ...S.f[key] }; S.f.st = { ...S.f[key] }; } closeModal(); render(); };
+}
 
 // ================= db helpers =================
 async function save(path, data, logText){
@@ -325,20 +413,25 @@ function navItems(){
 function render(){
   const app = $("#app"); try { hideTip(); } catch(e){}
   if (S.failed) { $("#nav").innerHTML=""; app.innerHTML = `<div class="center"><div>مش قادر أوصل لقاعدة البيانات.</div><div>اتأكد إنك مسجل دخول على claude.ai وافتح الصفحة تاني.</div></div>`; return; }
-  if (S.authState !== "in") { $("#nav").innerHTML = ""; $("#who").innerHTML = ""; app.innerHTML = S.authState === "out" ? vLogin() : `<div class="center">جاري التحميل…</div>`; bindLogin(); return; }
+  if (S.authState !== "in") { $("#nav").innerHTML = ""; $("#bnav").innerHTML = ""; $("#who").innerHTML = ""; app.innerHTML = S.authState === "out" ? vLogin() : `<div class="center">جاري التحميل…</div>`; bindLogin(); return; }
   if (!S.memberLoaded) { app.innerHTML = `<div class="center">جاري التحميل…</div>`; return; }
   if (hasAccess() && !["settings",...COLLS].every(k => S.loaded[k])) { app.innerHTML = `<div class="center">جاري تحميل البيانات…</div>`; return; }
   if (!hasAccess()) { $("#nav").innerHTML=""; app.innerHTML = vNoAccess(); bind(); return; }
   const items = navItems();
   if (!S.view || !items.some(i=>i[0]===S.view)) S.view = items[0]?.[0] || "mine";
   $("#nav").innerHTML = items.map(([k,l])=>`<a data-v="${k}" class="${k===S.view?"on":""}">${l}</a>`).join("");
+  const mainN = items.length > 5 ? items.slice(0,4) : items, moreN = items.length > 5 ? items.slice(4) : [];
+  $("#bnav").innerHTML = mainN.map(([k,l])=>`<a data-bv="${k}" class="${k===S.view?"on":""}"><span class="i">${ICON[k]||""}</span>${l}</a>`).join("") + (moreN.length ? `<a data-more class="${moreN.some(i=>i[0]===S.view)?"on":""}"><span class="i">${ICON.more}</span>المزيد</a>` : "");
+  $$("#bnav [data-bv]").forEach(a => a.onclick = () => go(a.dataset.bv));
+  const mo = $("#bnav [data-more]"); if (mo) mo.onclick = () => { modal(`<h3>المزيد</h3><div class="morelist">${moreN.map(([k,l])=>`<a data-mv="${k}" class="${k===S.view?"on":""}">${ICON[k]||""}${l}</a>`).join("")}<a data-mlogout>${ICON.mine}خروج <span class="muted" style="font-size:12px;margin-inline-start:auto">${esc(S.fbUser?.email||"")}</span></a></div>`); $$("[data-mv]").forEach(a => a.onclick = () => { closeModal(); go(a.dataset.mv); }); $("[data-mlogout]").onclick = () => { closeModal(); FB.signOut(); }; };
   const role = isAdmin() ? "Administrator" : (ROLE_PRESETS[me()?.role]?.label || "");
   const ds = can("viewAll") ? dueSoon() : [];
-  $("#who").innerHTML = `<button class="btn ghost sm" data-logout title="${esc(S.fbUser?.email||"")}">خروج</button>${ds.length?`<button class="bell" data-bell title="تنبيهات الدفعات">🔔<b>${ds.length}</b></button>`:""}${myPerson()?`<span>${esc(pname(myPerson()))}</span>`:""}${role?`<span class="tag">${esc(role)}</span>`:""}`;
+  $("#who").innerHTML = `<button class="btn ghost sm" data-logout title="${esc(S.fbUser?.email||"")}">خروج</button>${ds.length?`<button class="bell" data-bell title="تنبيهات الدفعات">🔔<b>${ds.length}</b></button>`:""}${myPerson()?`<span class="wname">${esc(pname(myPerson()))}</span>`:""}${role?`<span class="tag">${esc(role)}</span>`:""}`;
   const bell = $("[data-bell]"); if (bell) bell.onclick = () => remindersModal();
   const lo = $("[data-logout]"); if (lo) lo.onclick = () => FB.signOut();
   const fn = { expenses:vExpenses, dashboard:vDash, projects:vProjects, payments:vPayments, payouts:vPayouts, statement:vStatement, mine:vMine, team:vTeam, settings:vSettings, log:vLog }[S.view];
   app.innerHTML = fn ? fn() : "";
+  labelTables(app);
   bind();
 }
 function vNoAccess(){
@@ -377,13 +470,13 @@ function vDash(){
   if (waiting) alerts.push(["var(--info)", `فيه ${waiting} دفعة في حساب الشركة مستنية التوزيع.`, "__payouts"]);
   return `${periodBar("dash")}
   <div class="grid kpis">
-    <div class="card kpi"><div class="l">المحصّل · ${esc(r.label)}</div><div class="v">${fmt(collected)}</div><div class="s">${pays.filter(x=>inRange(x.date,r)).length} دفعة</div></div>
-    <div class="card kpi"><div class="l">عقود جديدة · ${esc(r.label)}</div><div class="v">${fmt(newContracts.reduce((a,p)=>a+N(p.total),0))}</div><div class="s">${newContracts.length} مشروع</div></div>
-    <div class="card kpi"><div class="l">اتوزع على الفريق · ${esc(r.label)}</div><div class="v">${fmt(distributed)}</div><div class="s">تحويلات فعلية</div></div>
-    <div class="card kpi hl"><div class="l">في حساب الشركة دلوقتي</div><div class="v">${fmt(cashInCompany())}</div><div class="s">لسه متوزعش</div></div>
+    <div class="card kpi hl" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="l">في حساب الشركة دلوقتي</div><div class="v">${fmt(cashInCompany())}</div><div class="s">لسه متوزعش · ${pays.filter(x=>payStatus(x).open).length} دفعة</div></div>${can("payouts")?`<button class="btn ghost sm" data-go="payouts">وزّع ←</button>`:""}</div>
+    <div class="card kpi"><div class="l">المحصّل</div><div class="v">${fmt(collected)}</div><div class="s">${pays.filter(x=>inRange(x.date,r)).length} دفعة</div></div>
+    <div class="card kpi"><div class="l">عقود جديدة</div><div class="v">${fmt(newContracts.reduce((a,p)=>a+N(p.total),0))}</div><div class="s">${newContracts.length} مشروع</div></div>
+    <div class="card kpi"><div class="l">اتوزع على الفريق</div><div class="v">${fmt(distributed)}</div><div class="s">تحويلات فعلية</div></div>
     <div class="card kpi"><div class="l">مستحقات عند العملاء</div><div class="v">${fmt(receivable)}</div><div class="s">${st.filter(x=>x.s.remaining>0.5).length} مشروع</div></div>
     <div class="card kpi"><div class="l">متأخرات</div><div class="v" style="color:${overdue?'var(--bad)':'inherit'}">${fmt(overdue)}</div><div class="s">${overdueItems.length} دفعة متأخرة</div></div>
-    <div class="card kpi"><div class="l">المصاريف · ${esc(r.label)}</div><div class="v">${fmt(exps)}</div><div class="s">${expensesIn(r).length} بند</div></div>
+    <div class="card kpi"><div class="l">المصاريف</div><div class="v">${fmt(exps)}</div><div class="s">${expensesIn(r).length} بند</div></div>
     ${cfg().reserve.enabled||reserveTotal()>0?`<div class="card kpi"><div class="l">رصيد الاحتياطي</div><div class="v">${fmt(reserveTotal())}</div><div class="s">${cfg().reserve.enabled?`${N(cfg().reserve.pct)}% من كل دفعة`:"متوقف"}</div></div>`:""}
   </div>
   <div class="grid cols2" style="margin-top:14px">
@@ -487,9 +580,9 @@ function vProjects(){
   return `<h2 style="margin-top:0">المشاريع <span class="spacer"></span>${can("projects")?`<button class="btn" data-new-project>+ مشروع جديد</button>`:""}</h2>
   <div class="filters"><div class="seg">${[["active","شغالة"],["done","خلصت"],["paused","متوقفة"],["all","الكل"]].map(([k,l])=>`<button data-pstatus="${k}" class="${f.status===k?"on":""}">${l} (${counts(k)})</button>`).join("")}</div>
   <input placeholder="بحث باسم العميل أو نوع الشغل" data-pq value="${esc(f.q)}" style="min-width:240px"></div>
-  <div class="tbl">${list.length?`<table><tr><th>العميل</th><th>نوع الشغل</th><th>الفريق</th><th>خطة الدفع</th><th>المبلغ</th><th>المحصّل</th><th>المتبقي</th><th>التحصيل</th><th>الدفعة الجاية</th><th></th></tr>
+  <div class="tbl">${list.length?`<table><tr><th>المشروع</th><th>الفريق</th><th>خطة الدفع</th><th>المبلغ</th><th>المحصّل</th><th>المتبقي</th><th>التحصيل</th><th>الدفعة الجاية</th><th></th></tr>
   ${list.map(p=>{const s=projStats(p); const tp=teamPreview(p); return `<tr class="click" data-open="${p.id}">
-    <td><b>${esc(p.client)}</b></td><td>${esc(p.type)}</td>
+    <td><b>${esc(p.client)}</b> <span class="muted">— ${esc(p.type)}</span></td>
     <td style="font-size:13px">${tp.team.length?tp.team.map(t=>`${esc(pname(t.personId))} <span class="muted">· ${esc(t.role||"")} · <span class="num">${t.mode==="fixed"?fmt(t.value):N(t.value)+"%"}</span></span>`).join("<br>"):'<span class="pill p-warn">مش متسجل</span>'}</td>
     <td style="font-size:13px">${p.plan==="single"?"دفعة واحدة":`${(p.schedule||[]).length} دفعات`}</td>
     <td>${money(s.total)}</td><td>${money(s.collected)}</td><td>${money(s.remaining)}</td>
@@ -1093,7 +1186,9 @@ async function exportCSV(kind){
 }
 
 // ================= modal helpers =================
-function modal(html){ $("#modalRoot").innerHTML = `<div class="modal-bg"><div class="modal">${html}</div></div>`; const bg=$(".modal-bg"); bg.addEventListener("mousedown",e=>{ if(e.target===bg) closeModal(); }); }
+function labelTables(root){ (root||document).querySelectorAll(".tbl table").forEach(t => { const rows = [...t.rows]; const h = rows.find(r => r.querySelector("th")); const labels = h ? [...h.cells].map(c => c.textContent.trim()) : []; if (h) h.classList.add("hrow");
+  rows.forEach(r => { if (r === h) return; let i = 0; [...r.cells].forEach(c => { if (c.dataset.label === undefined) c.dataset.label = labels[i] || ""; i += c.colSpan || 1; }); }); }); }
+function modal(html){ $("#modalRoot").innerHTML = `<div class="modal-bg"><div class="modal">${html}</div></div>`; labelTables($("#modalRoot")); const bg=$(".modal-bg"); bg.addEventListener("mousedown",e=>{ if(e.target===bg) closeModal(); }); }
 function closeModal(){ $("#modalRoot").innerHTML = ""; }
 function confirmBox(msg, onYes){ modal(`<h3>${msg}</h3><div class="act"><button class="btn danger" id="cy">أيوه</button><button class="btn ghost" id="cn">إلغاء</button></div>`); $("#cy").onclick=()=>{closeModal();onYes();}; $("#cn").onclick=closeModal; }
 
@@ -1123,6 +1218,7 @@ function bind(){
   on("[data-approve]","onclick", e => memberModal(e.dataset.approve, true));
   on("[data-reject]","onclick", async e => { if (await del("requests/"+e.dataset.reject)) toast("اترفض"); });
   on("[data-export]","onclick", e => exportCSV(e.dataset.export));
+  on("[data-psheet]","onclick", e => periodSheet(e.dataset.psheet));
   on("[data-period]","onclick", e => { const [k,p] = e.dataset.period.split(":"); S.f[k] = { ...(S.f[k]||{}), p }; render(); });
   on("[data-pfrom]","onchange", e => { S.f[e.dataset.pfrom].from = e.value; render(); });
   on("[data-pto]","onchange", e => { S.f[e.dataset.pto].to = e.value; render(); });
