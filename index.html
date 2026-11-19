@@ -126,6 +126,7 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
 .popt.on .rd{border:5px solid var(--silver)}
 .popt span{font-size:12px;color:var(--muted)}
 #bnav{display:none}
+#bnav:empty{display:none !important}
 .morelist a{display:flex;align-items:center;gap:12px;padding:13px 6px;border-bottom:1px solid var(--line);color:var(--text);text-decoration:none;cursor:pointer;font-size:15px}
 .morelist a:last-child{border:0}
 .morelist a.on{color:#fff;font-weight:700}
@@ -172,6 +173,12 @@ svg text{fill:var(--muted);font-size:10px;font-family:inherit}
   .act .btn{flex:1}
   .toast{bottom:calc(90px + env(safe-area-inset-bottom))}
 }
+.lockbox{max-width:360px;margin:12vh auto 0;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px}
+.lockbox img{height:44px}
+.fp{width:92px;height:92px;border-radius:50%;background:#16171b;border:1px solid #2e2f36;display:flex;align-items:center;justify-content:center;color:var(--silver);cursor:pointer}
+.fp:hover{border-color:var(--silver)}
+.bio-banner{display:flex;align-items:center;gap:12px;background:linear-gradient(160deg,#1b2433,#141416);border:1px solid #2c3a52;border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.bio-banner .t{flex:1;font-size:13px}.bio-banner b{display:block;font-size:14px;margin-bottom:2px}
 .perm{display:flex;gap:12px;flex-wrap:wrap;font-size:13px}
 .perm label{display:flex;gap:5px;align-items:center}
 </style>
@@ -225,6 +232,8 @@ const ICON = {
   settings: SV('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
   log: SV('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   more: SV('<path d="M4 6h16M4 12h16M4 18h16"/>'),
+  lock: SV('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>'),
+  fp: `<svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 11v3a8 8 0 0 1-1.5 4.7M8.5 10.5A3.5 3.5 0 0 1 15.5 11v2a12 12 0 0 1-.7 4M5.2 8.5A8 8 0 0 1 19.8 11v1.5M5 12.5v.5a11 11 0 0 0 1.5 5.5M18.6 16.5c.3-1 .4-2 .4-3M12 3a9 9 0 0 1 5.5 1.9M6.5 4.9A9 9 0 0 1 9 3.5"/></svg>`,
   cal: SV('<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>')
 };
 const KIND = { founder:"شريك مؤسس", employee:"موظف", freelancer:"فريلانسر" };
@@ -414,6 +423,7 @@ function render(){
   const app = $("#app"); try { hideTip(); } catch(e){}
   if (S.failed) { $("#nav").innerHTML=""; app.innerHTML = `<div class="center"><div>مش قادر أوصل لقاعدة البيانات.</div><div>اتأكد إنك مسجل دخول على claude.ai وافتح الصفحة تاني.</div></div>`; return; }
   if (S.authState !== "in") { $("#nav").innerHTML = ""; $("#bnav").innerHTML = ""; $("#who").innerHTML = ""; app.innerHTML = S.authState === "out" ? vLogin() : `<div class="center">جاري التحميل…</div>`; bindLogin(); return; }
+  if (BIO.get() && !S.unlocked) { $("#nav").innerHTML = ""; $("#bnav").innerHTML = ""; $("#who").innerHTML = ""; app.innerHTML = vLock(); $$("[data-unlock]").forEach(b => b.onclick = tryUnlock); $("[data-lockout]").onclick = () => FB.signOut(); if (!S.autoTried) { S.autoTried = true; setTimeout(tryUnlock, 300); } return; }
   if (!S.memberLoaded) { app.innerHTML = `<div class="center">جاري التحميل…</div>`; return; }
   if (hasAccess() && !["settings",...COLLS].every(k => S.loaded[k])) { app.innerHTML = `<div class="center">جاري تحميل البيانات…</div>`; return; }
   if (!hasAccess()) { $("#nav").innerHTML=""; app.innerHTML = vNoAccess(); bind(); return; }
@@ -423,14 +433,18 @@ function render(){
   const mainN = items.length > 5 ? items.slice(0,4) : items, moreN = items.length > 5 ? items.slice(4) : [];
   $("#bnav").innerHTML = mainN.map(([k,l])=>`<a data-bv="${k}" class="${k===S.view?"on":""}"><span class="i">${ICON[k]||""}</span>${l}</a>`).join("") + (moreN.length ? `<a data-more class="${moreN.some(i=>i[0]===S.view)?"on":""}"><span class="i">${ICON.more}</span>المزيد</a>` : "");
   $$("#bnav [data-bv]").forEach(a => a.onclick = () => go(a.dataset.bv));
-  const mo = $("#bnav [data-more]"); if (mo) mo.onclick = () => { modal(`<h3>المزيد</h3><div class="morelist">${moreN.map(([k,l])=>`<a data-mv="${k}" class="${k===S.view?"on":""}">${ICON[k]||""}${l}</a>`).join("")}<a data-mlogout>${ICON.mine}خروج <span class="muted" style="font-size:12px;margin-inline-start:auto">${esc(S.fbUser?.email||"")}</span></a></div>`); $$("[data-mv]").forEach(a => a.onclick = () => { closeModal(); go(a.dataset.mv); }); $("[data-mlogout]").onclick = () => { closeModal(); FB.signOut(); }; };
+  const mo = $("#bnav [data-more]"); if (mo) mo.onclick = () => { modal(`<h3>المزيد</h3><div class="morelist">${moreN.map(([k,l])=>`<a data-mv="${k}" class="${k===S.view?"on":""}">${ICON[k]||""}${l}</a>`).join("")}<a data-mbio>${ICON.lock}الدخول بالبصمة <span class="muted" style="font-size:12px;margin-inline-start:auto">${BIO.get()?"شغال":"مقفول"}</span></a><a data-mlogout>${ICON.mine}خروج <span class="muted" style="font-size:12px;margin-inline-start:auto">${esc(S.fbUser?.email||"")}</span></a></div>`); $$("[data-mv]").forEach(a => a.onclick = () => { closeModal(); go(a.dataset.mv); }); $("[data-mlogout]").onclick = () => { closeModal(); FB.signOut(); }; $("[data-mbio]").onclick = () => { closeModal(); bioModal(); }; };
   const role = isAdmin() ? "Administrator" : (ROLE_PRESETS[me()?.role]?.label || "");
   const ds = can("viewAll") ? dueSoon() : [];
-  $("#who").innerHTML = `<button class="btn ghost sm" data-logout title="${esc(S.fbUser?.email||"")}">خروج</button>${ds.length?`<button class="bell" data-bell title="تنبيهات الدفعات">🔔<b>${ds.length}</b></button>`:""}${myPerson()?`<span class="wname">${esc(pname(myPerson()))}</span>`:""}${role?`<span class="tag">${esc(role)}</span>`:""}`;
+  $("#who").innerHTML = `<button class="btn ghost sm" data-bio title="الدخول بالبصمة" style="display:flex;align-items:center;gap:5px">${ICON.lock}<span class="wname">البصمة</span></button><button class="btn ghost sm" data-logout title="${esc(S.fbUser?.email||"")}">خروج</button>${ds.length?`<button class="bell" data-bell title="تنبيهات الدفعات">🔔<b>${ds.length}</b></button>`:""}${myPerson()?`<span class="wname">${esc(pname(myPerson()))}</span>`:""}${role?`<span class="tag">${esc(role)}</span>`:""}`;
   const bell = $("[data-bell]"); if (bell) bell.onclick = () => remindersModal();
   const lo = $("[data-logout]"); if (lo) lo.onclick = () => FB.signOut();
+  const bb = $("[data-bio]"); if (bb) bb.onclick = () => bioModal();
   const fn = { expenses:vExpenses, dashboard:vDash, projects:vProjects, payments:vPayments, payouts:vPayouts, statement:vStatement, mine:vMine, team:vTeam, settings:vSettings, log:vLog }[S.view];
-  app.innerHTML = fn ? fn() : "";
+  const showBanner = S.bioOk && !BIO.get() && (()=>{ try { return !localStorage.getItem("kanai_bio_skip_"+S.myId); } catch(e){ return false; } })();
+  app.innerHTML = (showBanner ? `<div class="bio-banner"><span class="pcal">${ICON.lock}</span><div class="t"><b>افتح السيستم بالبصمة</b><span class="muted">بدل ما تسجّل دخول بجوجل كل مرة، افتحه ببصمتك أو وشك على الجهاز ده</span></div><button class="btn sm" data-bion2>تفعيل</button><button class="linkbtn" data-bioskip>مش دلوقتي</button></div>` : "") + (fn ? fn() : "");
+  const b2 = $("[data-bion2]"); if (b2) b2.onclick = () => bioModal();
+  const bs = $("[data-bioskip]"); if (bs) bs.onclick = () => { try { localStorage.setItem("kanai_bio_skip_"+S.myId, "1"); } catch(e){} render(); };
   labelTables(app);
   bind();
 }
@@ -1251,6 +1265,60 @@ window.addEventListener("hashchange", () => { const h = location.hash.slice(1); 
 { const h = location.hash.slice(1); if (h) S.view = h; }
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 
+// ================= biometric lock =================
+const BIO = {
+  key: () => "kanai_bio_" + (S.myId || ""),
+  get(){ try { return JSON.parse(localStorage.getItem(BIO.key()) || "null"); } catch(e){ return null; } },
+  set(v){ try { v ? localStorage.setItem(BIO.key(), JSON.stringify(v)) : localStorage.removeItem(BIO.key()); } catch(e){} },
+  async supported(){ try { return !!(window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); } catch(e){ return false; } },
+  rand(){ const a = new Uint8Array(32); crypto.getRandomValues(a); return a; },
+  b64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); },
+  unb64(s){ return Uint8Array.from(atob(s), c => c.charCodeAt(0)); },
+  async enable(){
+    const u = S.fbUser; const cred = await navigator.credentials.create({ publicKey: {
+      challenge: BIO.rand(), rp: { name:"KANai", id: location.hostname },
+      user: { id: new TextEncoder().encode(u.uid), name: u.email || u.uid, displayName: u.displayName || u.email || "KANai" },
+      pubKeyCredParams: [{ type:"public-key", alg:-7 }, { type:"public-key", alg:-257 }],
+      authenticatorSelection: { authenticatorAttachment:"platform", userVerification:"required", residentKey:"discouraged" }, timeout: 60000 } });
+    BIO.set({ id: BIO.b64(cred.rawId), at: new Date().toISOString() }); S.unlocked = true;
+    try { localStorage.setItem("kanai_bio_device", "1"); } catch(e){} FB.persist && FB.persist(true);
+  },
+  async verify(){
+    const b = BIO.get(); if (!b) return true;
+    await navigator.credentials.get({ publicKey: { challenge: BIO.rand(), rpId: location.hostname, allowCredentials: [{ type:"public-key", id: BIO.unb64(b.id), transports:["internal","hybrid"] }], userVerification:"required", timeout: 60000 } });
+    return true;
+  }
+};
+S.unlocked = false; S.bioOk = false; BIO.supported().then(v => { S.bioOk = v; if (S.authState === "in") render(); });
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) hiddenAt = Date.now();
+  else if (hiddenAt && Date.now() - hiddenAt > 15000 && BIO.get()) { S.unlocked = false; closeModal(); render(); }
+});
+function vLock(){
+  return `<div class="lockbox"><div style="font-size:18px;font-weight:600">السيستم مقفول</div>
+  <div class="muted">افتحه بالبصمة أو الوش أو الباترن بتاع جهازك</div>
+  <div class="fp" data-unlock>${ICON.fp}</div>
+  <button class="btn" data-unlock style="min-width:200px">افتح</button>
+  <div class="hint" id="lockerr" style="color:var(--bad)"></div>
+  <button class="linkbtn" data-lockout>دخول بحساب تاني</button></div>`;
+}
+async function tryUnlock(){
+  if (S.unlocking) return; S.unlocking = true;
+  try { await BIO.verify(); S.unlocked = true; render(); }
+  catch(e){ const m = $("#lockerr"); if (m) m.textContent = e && e.name === "NotAllowedError" ? "اتلغت أو مخلصتش، جرّب تاني" : "مقدرتش أتحقق، جرّب تاني"; }
+  finally { S.unlocking = false; }
+}
+function bioModal(){
+  const on = !!BIO.get();
+  modal(`<h3>${ICON.lock} الدخول بالبصمة</h3>
+  <div class="muted" style="line-height:1.8">${S.bioOk ? (on ? "القفل شغال على الجهاز ده. كل ما تفتح السيستم، أو ترجعله بعد ما تخرج منه، هيطلب منك البصمة أو الوش أو الباترن." : "لما تفعّله، السيستم هيطلب البصمة أو الوش أو الباترن بتاع الجهاز ده كل ما تفتحه. التفعيل بيتعمل على كل جهاز لوحده.") : "الجهاز أو المتصفح ده مش بيدعم الدخول بالبصمة. جرّب من الموبايل، أو من متصفح Chrome أو Safari محدّث."}</div>
+  <div class="act">${S.bioOk ? (on ? `<button class="btn danger" id="bioff">إيقاف القفل على الجهاز ده</button>` : `<button class="btn" id="bion">تفعيل</button>`) : ""}<button class="btn ghost" id="bicl">قفل</button></div>`);
+  $("#bicl").onclick = closeModal;
+  if ($("#bion")) $("#bion").onclick = async () => { try { await BIO.enable(); closeModal(); toast("القفل بالبصمة اتفعّل ✓"); render(); } catch(e){ console.log("[KANai] bio", e); toast(e && e.name === "NotAllowedError" ? "اتلغى" : "مقدرتش أفعّله على الجهاز ده", true); } };
+  if ($("#bioff")) $("#bioff").onclick = async () => { try { await BIO.verify(); BIO.set(null); try { localStorage.removeItem("kanai_bio_device"); } catch(e){} FB.persist && FB.persist(false); closeModal(); toast("اتوقف"); render(); } catch(e){ toast("لازم تأكد بالبصمة الأول", true); } };
+}
+
 // ================= login =================
 function vLogin(){
   const mode = S.loginMode || "in";
@@ -1300,18 +1368,21 @@ function clearSubs(){ unsubs.forEach(u => { try{u();}catch(e){} }); unsubs = [];
       import(`https://www.gstatic.com/firebasejs/${FBV}/firebase-firestore.js`)]);
     const app = appM.initializeApp(FB_CONFIG);
     const auth = authM.getAuth(app); const db = fsM.getFirestore(app);
+    const bioDevice = (() => { try { return localStorage.getItem("kanai_bio_device") === "1"; } catch(e){ return false; } })();
+    try { await authM.setPersistence(auth, bioDevice ? authM.browserLocalPersistence : authM.browserSessionPersistence); } catch(e){ console.log("[KANai] persistence", e); }
     const ref = p => fsM.doc(db, ...p.split("/"));
     Object.assign(FB, { auth, db, fs:fsM, ref,
       google: () => authM.signInWithPopup(auth, new authM.GoogleAuthProvider()),
       signIn: (e,p) => authM.signInWithEmailAndPassword(auth, e, p),
       signUp: async (e,p,n) => { const c = await authM.createUserWithEmailAndPassword(auth, e, p); if (n) await authM.updateProfile(c.user, { displayName:n }); S.fbUser = c.user; await touchUser(); return c; },
       reset: e => authM.sendPasswordResetEmail(auth, e),
-      signOut: () => authM.signOut(auth) });
+      signOut: () => authM.signOut(auth),
+      persist: on => authM.setPersistence(auth, on ? authM.browserLocalPersistence : authM.browserSessionPersistence).catch(()=>{}) });
     S.db = { doc: p => ({ set: d => fsM.setDoc(ref(p), d), delete: () => fsM.deleteDoc(ref(p)), get: async () => { const x = await fsM.getDoc(ref(p)); return x.exists() ? x.data() : null; } }) };
     S.user = { profiles: async ids => Object.fromEntries(ids.map(id => [id, { name: S.users[id]?.name || "" }])),
       search: async q => { q = (q||"").toLowerCase(); return Object.entries(S.users).filter(([,u]) => !q || (u.name||"").toLowerCase().includes(q) || (u.email||"").toLowerCase().includes(q)).map(([id,u]) => ({ id, name:u.name, email:u.email })); } };
     authM.onAuthStateChanged(auth, async user => {
-      clearSubs(); scopeKey = null; ownerChecked = false; S.inviteTried = false; S.invites = {};
+      clearSubs(); scopeKey = null; ownerChecked = false; S.inviteTried = false; S.invites = {}; S.unlocked = false; S.autoTried = false;
       COLLS.forEach(c => S[c] = {}); S.settings = null; S.loaded = {}; S.memberLoaded = false; S.users = {};
       if (!user) { S.authState = "out"; S.fbUser = null; S.myId = null; S.isOwner = false; render(); return; }
       S.fbUser = user; S.myId = user.uid; S.authState = "in";
