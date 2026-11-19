@@ -19,8 +19,18 @@ service cloud.firestore {
       allow read: if isAdmin() || isMember();
       allow write: if isAdmin();
     }
+    function invitePath() { return /databases/$(database)/documents/invites/$(request.auth.token.email); }
     match /members/{u} {
       allow read: if isAdmin() || (signedIn() && uid() == u);
+      allow write: if isAdmin();
+      allow create: if signedIn() && uid() == u && request.auth.token.email_verified == true
+        && exists(invitePath())
+        && request.resource.data.role == get(invitePath()).data.role
+        && request.resource.data.personId == get(invitePath()).data.personId
+        && request.resource.data.perms == get(invitePath()).data.perms;
+    }
+    match /invites/{em} {
+      allow read: if isAdmin() || (signedIn() && request.auth.token.email == em);
       allow write: if isAdmin();
     }
     match /users/{u} {

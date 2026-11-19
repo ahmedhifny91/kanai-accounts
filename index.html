@@ -746,7 +746,11 @@ function vTeam(){
   ${people.map(p=>`<tr class="click" data-person-edit="${p.id}"><td>${personCell(p.id)}</td><td>${KIND[p.kind]||""}</td><td>${esc(p.title||"")}</td><td class="num">${teamOf(p.id).length}</td><td>${money(personTotals().res[p.id]?.balance||0)}</td><td>${linked[p.id]?esc(uname(linked[p.id])):'<span class="muted">مش مربوط</span>'}</td><td>${p.active===false?'<span class="pill p-mute">موقوف</span>':'<span class="pill p-ok">نشط</span>'}</td><td style="width:1%"><span class="btn ghost sm">✎ تعديل</span></td></tr>`).join("")}</table></div>
   <div class="hint">الشركاء المؤسسين بيقسموا الباقي من كل دفعة بالتساوي. الموظف أو الفريلانسر بياخد بس نصيبه في المشاريع اللي هو فيها.</div>
   ${reqs.length?`<h2>طلبات دخول جديدة</h2><div class="tbl"><table>${reqs.map(u=>`<tr><td>${esc(uname(u))}</td><td class="muted num">${fdate((S.requests[u].at||"").slice(0,10))}</td><td><button class="btn sm" data-approve="${u}">ضيفه</button> <button class="btn ghost sm" data-reject="${u}">ارفض</button></td></tr>`).join("")}</table></div>`:""}
-  <h2>المستخدمين والصلاحيات <span class="spacer"></span><button class="btn" data-add-user>+ إضافة مستخدم</button></h2>
+  <h2>دعوات بالإيميل <span class="spacer"></span><button class="btn" data-invite>+ دعوة بالإيميل</button></h2>
+  <div class="hint" style="margin:-6px 0 10px">اكتب الجيميل اللي الشخص هيدخل بيه، وأول ما يسجّل دخول بجوجل هيفتحله السيستم على طول بالصلاحيات اللي حددتها.</div>
+  <div class="tbl">${Object.keys(S.invites||{}).length?`<table><tr><th>الإيميل</th><th>مربوط بـ</th><th>الدور</th><th>الحالة</th><th></th></tr>${Object.entries(S.invites).map(([em,v])=>{ const used = Object.values(S.members).some(m=>m.invite===em) || Object.entries(S.users||{}).some(([u,x])=>(x.email||"").toLowerCase()===em && S.members[u]);
+    return `<tr><td class="num">${esc(em)}</td><td>${esc(pname(v.personId))}</td><td>${esc(ROLE_PRESETS[v.role]?.label||"مخصص")}</td><td>${used?'<span class="pill p-ok">دخل</span>':'<span class="pill p-info">مستني أول دخول</span>'}</td><td><button class="btn ghost sm" data-uninvite="${esc(em)}">حذف</button></td></tr>`; }).join("")}</table>`:`<div class="empty">مفيش دعوات</div>`}</div>
+  <h2>المستخدمين والصلاحيات <span class="spacer"></span><button class="btn ghost" data-add-user>+ ربط مستخدم دخل قبل كده</button></h2>
   <div class="tbl"><table><tr><th>المستخدم</th><th>مربوط بـ</th><th>الدور</th><th>الصلاحيات</th><th></th></tr>
   ${mems.length?mems.map(([u,m])=>{const pr = m.role==="admin" ? ROLE_PRESETS.admin.perms : (m.perms||{}); return `<tr><td>${esc(uname(u))}${u===S.myId?' <span class="tag">أنت</span>':""}</td><td>${m.personId?esc(pname(m.personId)):'<span class="muted">—</span>'}</td><td><span class="pill ${m.role==="admin"?"p-info":"p-mute"}">${esc(ROLE_PRESETS[m.role]?.label||"مخصص")}</span></td>
     <td style="font-size:12px" class="muted">${m.role==="admin"?"كل الصلاحيات + إدارة المستخدمين والإعدادات":Object.entries(PERM_LABELS).filter(([k])=>pr[k]).map(([,l])=>l).join(" · ")||"يشوف حسابه بس"}</td>
@@ -789,6 +793,27 @@ function memberModal(u, isNew){
     if (u===S.myId && role!=="admin" && !S.isOwner) return toast("مينفعش تشيل صلاحية الأدمن من نفسك", true);
     if(await save("members/"+u, { personId:$("#up").value, role, perms, updatedAt:new Date().toISOString() }, `صلاحيات ${uname(u)}: ${ROLE_PRESETS[role]?.label||"مخصص"}`)){
       if (S.requests[u]) del("requests/"+u); closeModal(); toast("اتحفظ ✓"); }
+  };
+}
+function inviteModal(){
+  modal(`<h3>دعوة بالإيميل</h3>
+  <label class="f">الجيميل اللي هيدخل بيه<input id="iem" type="email" dir="ltr" placeholder="name@gmail.com"></label>
+  <div class="two" style="margin-top:12px"><label class="f">مربوط بأنهي فرد في الفريق<select id="ipp">${peopleOptions("")}</select></label>
+  <label class="f">الدور<select id="irl">${Object.entries(ROLE_PRESETS).map(([k,v])=>`<option value="${k}" ${k==="founder"?"selected":""}>${v.label}</option>`).join("")}</select></label></div>
+  <div class="sub"><h4>الصلاحيات</h4><div class="perm">${Object.entries(PERM_LABELS).map(([k,l])=>`<label><input type="checkbox" data-iperm="${k}" ${ROLE_PRESETS.founder.perms[k]?"checked":""}> ${l}</label>`).join("")}</div></div>
+  <div class="act"><button class="btn" id="isave">ابعت الدعوة</button><button class="btn ghost" id="icancel">إلغاء</button></div>`);
+  const apply = () => { const pre = ROLE_PRESETS[$("#irl").value]; $$("[data-iperm]").forEach(c => { c.checked = !!pre.perms[c.dataset.iperm]; c.disabled = $("#irl").value==="admin"; }); };
+  $("#irl").onchange = apply; $("#icancel").onclick = closeModal;
+  $("#isave").onclick = async () => {
+    const em = $("#iem").value.trim().toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return toast("اكتب الإيميل صح", true);
+    if (!$("#ipp").value) return toast("اختار الفرد اللي هيتربط بيه", true);
+    const role = $("#irl").value; const perms = Object.fromEntries($$("[data-iperm]").map(c=>[c.dataset.iperm, role==="admin" ? true : c.checked]));
+    if (await save("invites/"+em, { personId:$("#ipp").value, role, perms, at:new Date().toISOString(), by:S.myId }, `دعوة ${em} (${pname($("#ipp").value)})`)) {
+      // if this person already signed in and is waiting, give access now
+      const waiting = Object.entries(S.users||{}).find(([u,x]) => (x.email||"").toLowerCase()===em && !S.members[u]);
+      if (waiting) { await save("members/"+waiting[0], { personId:$("#ipp").value, role, perms, invite:em, updatedAt:new Date().toISOString() }); if (S.requests[waiting[0]]) del("requests/"+waiting[0]); }
+      closeModal(); toast("اتبعتت ✓ — ابعتله لينك السيستم");
+    }
   };
 }
 async function addUserModal(){
@@ -1093,6 +1118,8 @@ function bind(){
   on("[data-person-edit]","onclick", e => personModal(e.dataset.personEdit));
   on("[data-member]","onclick", e => memberModal(e.dataset.member));
   on("[data-add-user]","onclick", () => addUserModal());
+  on("[data-invite]","onclick", () => inviteModal());
+  on("[data-uninvite]","onclick", e => confirmBox(`تحذف دعوة ${esc(e.dataset.uninvite)}؟ اللي دخل بيها قبل كده هيفضل بصلاحياته لحد ما تشيلها من المستخدمين.`, async()=>{ if (await del("invites/"+e.dataset.uninvite, `حذف دعوة ${e.dataset.uninvite}`)) toast("اتحذفت"); }));
   on("[data-approve]","onclick", e => memberModal(e.dataset.approve, true));
   on("[data-reject]","onclick", async e => { if (await del("requests/"+e.dataset.reject)) toast("اترفض"); });
   on("[data-export]","onclick", e => exportCSV(e.dataset.export));
@@ -1188,7 +1215,7 @@ function clearSubs(){ unsubs.forEach(u => { try{u();}catch(e){} }); unsubs = [];
     S.user = { profiles: async ids => Object.fromEntries(ids.map(id => [id, { name: S.users[id]?.name || "" }])),
       search: async q => { q = (q||"").toLowerCase(); return Object.entries(S.users).filter(([,u]) => !q || (u.name||"").toLowerCase().includes(q) || (u.email||"").toLowerCase().includes(q)).map(([id,u]) => ({ id, name:u.name, email:u.email })); } };
     authM.onAuthStateChanged(auth, async user => {
-      clearSubs(); scopeKey = null; ownerChecked = false;
+      clearSubs(); scopeKey = null; ownerChecked = false; S.inviteTried = false; S.invites = {};
       COLLS.forEach(c => S[c] = {}); S.settings = null; S.loaded = {}; S.memberLoaded = false; S.users = {};
       if (!user) { S.authState = "out"; S.fbUser = null; S.myId = null; S.isOwner = false; render(); return; }
       S.fbUser = user; S.myId = user.uid; S.authState = "in";
@@ -1196,6 +1223,7 @@ function clearSubs(){ unsubs.forEach(u => { try{u();}catch(e){} }); unsubs = [];
       render(); touchUser();
       const u = fsM.onSnapshot(ref("members/"+user.uid), snap => {
         if (snap.exists()) S.members = { ...S.members, [user.uid]: snap.data() }; else { const m = { ...S.members }; delete m[user.uid]; S.members = m; }
+        if (!snap.exists() && !S.isOwner && !S.inviteTried) { S.inviteTried = true; claimInvite(user); }
         S.memberLoaded = true; setupScope(); render();
       }, e => { console.log("[KANai] member", e); S.memberLoaded = true; render(); });
       unsubs.push(u);
@@ -1204,6 +1232,13 @@ function clearSubs(){ unsubs.forEach(u => { try{u();}catch(e){} }); unsubs = [];
     });
   } catch(e) { console.log("[KANai] boot", e); S.failed = true; S.authState = "in"; render(); }
 })();
+async function claimInvite(user){
+  const email = (user.email||"").toLowerCase(); if (!email || !user.emailVerified) return;
+  try { const inv = await S.db.doc("invites/"+email).get(); if (!inv) return;
+    await FB.fs.setDoc(FB.ref("members/"+user.uid), { personId:inv.personId||"", role:inv.role||"employee", perms:inv.perms||{}, invite:email, updatedAt:new Date().toISOString() });
+    try { await FB.fs.setDoc(FB.ref("log/"+uid()), { at:new Date().toISOString(), by:user.uid, text:`دخول أول مرة بدعوة: ${email}` }); } catch(e){}
+  } catch(e){ console.log("[KANai] invite", e.code||e); }
+}
 async function touchUser(){ const u = S.fbUser; if (!u) return; try { await FB.fs.setDoc(FB.ref("users/"+u.uid), { name: u.displayName || (u.email||"").split("@")[0], email: u.email || "", lastLogin: new Date().toISOString() }, { merge:true }); } catch(e){ console.log("[KANai] touch", e); } }
 function listen(name, q, onData){ const u = FB.fs.onSnapshot(q, snap => { onData(snap); S.loaded[name] = true; render(); if (name === "people" || name === "settings") ensureOwner(); }, e => { console.log("[KANai] listen "+name, e.code||e); S.loaded[name] = true; render(); }); unsubs.push(u); }
 function setupScope(){
@@ -1226,7 +1261,7 @@ function setupScope(){
     listen("payouts", fs.query(col("payouts"), fs.where("personId","==", me)), snap => { S.payouts = Object.fromEntries(snap.docs.map(d => [d.id, { ...d.data(), id:d.id }])); });
   }
   if (can("viewAll") || can("expenses")) all("expenses"); else none("expenses");
-  if (isAdmin()) { all("requests"); all("log"); listen("members", col("members"), snap => { S.members = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); }); }
+  if (isAdmin()) { all("requests"); all("log"); listen("invites", col("invites"), snap => { S.invites = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); }); listen("members", col("members"), snap => { S.members = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); }); }
   else { S.loaded.requests = S.loaded.log = S.loaded.members = true; }
   if (isAdmin() || can("viewAll")) listen("users", col("users"), snap => { S.users = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); }); else S.loaded.users = true;
 }
