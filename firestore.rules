@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function isOwner() { return signedIn() && request.auth.token.email == 'a.magdy1191@gmail.com' && request.auth.token.email_verified == true; }
+    function memPath() { return /databases/$(database)/documents/members/$(request.auth.uid); }
+    function isMember() { return signedIn() && exists(memPath()); }
+    function mem() { return get(memPath()).data; }
+    function isAdmin() { return isOwner() || (isMember() && mem().role == 'admin'); }
+    function perm(p) { return isAdmin() || (isMember() && mem().get('perms', {}).get(p, false) == true); }
+    function myPerson() { return mem().get('personId', ''); }
+
+    match /settings/{id} {
+      allow read: if isAdmin() || isMember();
+      allow write: if isAdmin();
+    }
+    match /people/{id} {
+      allow read: if isAdmin() || isMember();
+      allow write: if isAdmin();
+    }
+    match /members/{u} {
+      allow read: if isAdmin() || (signedIn() && uid() == u);
+      allow write: if isAdmin();
+    }
+    match /users/{u} {
+      allow read: if isAdmin() || perm('viewAll') || (signedIn() && uid() == u);
+      allow create, update: if signedIn() && uid() == u;
+      allow delete: if isAdmin();
+    }
+    match /requests/{u} {
+      allow read: if isAdmin() || (signedIn() && uid() == u);
+      allow create, update: if signedIn() && uid() == u;
+      allow delete: if isAdmin();
+    }
+    match /projects/{id} {
+      allow read: if perm('viewAll') || (isMember() && myPerson() in resource.data.get('teamIds', []));
+      allow create, delete: if perm('projects');
+      allow update: if perm('projects')
+        || (perm('payments') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['invoiceNo']));
+    }
+    match /payments/{id} {
+      allow read: if perm('viewAll') || (isMember() && myPerson() in resource.data.get('teamIds', []));
+      allow create, delete: if perm('payments');
+      allow update: if perm('payments')
+        || (perm('projects') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teamIds']));
+    }
+    match /payouts/{id} {
+      allow read: if perm('viewAll') || (isMember() && resource.data.personId == myPerson());
+      allow write: if perm('payouts');
+    }
+    match /expenses/{id} {
+      allow read: if perm('viewAll') || perm('expenses');
+      allow write: if perm('expenses');
+    }
+    match /log/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() || isMember();
+    }
+  }
+}
